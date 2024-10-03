@@ -1,0 +1,165 @@
+---
+title: "Community Survey 2022 Ratio Estimator Analysis"
+subtitle: "Community-based paramedic service strategies that focus on medical emergencies, emergency transfers, and vehicle accidents may help to effectively manage EMS demand"
+author: Aamishi, Daniel, Dennis, Vandan
+  - Group 35
+thanks: "Code and data are available at: https://github.com/vandanppatel/week5exercise"
+date: today
+date-format: long
+format: pdf
+number-sections: true
+---
+
+
+```{r}
+#| include: false
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(tinytex)
+library(knitr)
+library(ggplot2)
+library(dplyr)
+```
+
+date-format: long
+
+
+Instructions on How to Obtain the Data
+The following is the instructions on how to obtain the data, 
+
+Go to IPUMS https://usa.ipums.org/usa/
+
+Then click “get data” 
+
+Click select samples
+
+Unselect Default samples from each year and select ACS 2022. Then click samle selctions
+
+Then select vaiable by using the search function under harmonized variables to search for STATEICP and EDUC 
+
+Once both are added go to cart
+
+Click create data extract. Change the data format to csv. Submit extract. (You may at this point have to log in to your account or create a new account)
+
+Download the csv.
+
+An Overview of The Ratio Estimator
+A ratio estimator is a statistical technique used in survey sampling to estimate a population parameter (such as the total or mean) by leveraging auxiliary information that is correlated with the variable of interest. This method improves the precision of the estimate by using the known total of an auxiliary variable that is easier to measure or has a known population total.
+
+Key Elements
+
+Key Concepts:
+Using the Ratio of Two Variables: A ratio estimator relies on the assumption that two variables, say "Y" (the variable you want to estimate) and "X" (an auxiliary variable), are linearly related. "X" should be correlated with "Y", and the total or mean of "X" should be known.
+
+The ratio estimator for the population mean of "Y" is calculated as the sample mean of "Y" divided by the sample mean of "X", multiplied by the known population mean of "X".
+
+Purpose: The main idea is to use an auxiliary variable that is easy to measure and has a known mean or total. If "X" is related to "Y", this can give you a more precise estimate of the population mean or total of "Y".
+
+Efficiency: Ratio estimators often perform better than simply using the sample mean, especially when "Y" and "X" are highly correlated. They can reduce the variability of your estimate, making it more precise.
+
+Bias: Ratio estimators may introduce some bias (meaning the estimate could be systematically off), but this bias tends to decrease as the sample size grows. For large samples, the ratio estimator usually gives reliable results.
+```{r}
+#| include: false
+# install.packages('ipumsr')
+```
+
+```{r}
+#| include: false
+library(ipumsr)
+library(dplyr)
+library(knitr)
+```
+
+```{r}
+#| include: false
+data_raw <- read.csv("usa_00001.csv")
+```
+
+```{r}
+#| include: false
+proportion_by_educd <- data_raw |> 
+  filter(STATEICP == '71') |> 
+  group_by(EDUC) |> 
+  summarize(count = n()) |> 
+  mutate(proportion = count / sum(count))
+
+print(proportion_by_educd)
+```
+
+```{r}
+#| include: false
+# Calculate the proportions as before
+proportion_by_educd <- data_raw |> 
+  filter(STATEICP == '71') |> 
+  group_by(EDUCD) |> 
+  summarize(count = n()) |> 
+  mutate(proportion = count / sum(count))
+
+# Extract the proportion for EDUCD = 116
+# Extract the proportion for EDUCD = 116 as a numeric value
+proportion_116 <- proportion_by_educd |> 
+  filter(EDUCD == 116) |> 
+  pull(proportion)  # This extracts the proportion as a numeric value
+
+
+# Print the proportion for EDUCD = 116
+print(proportion_116)
+```
+
+```{r}
+#| include: false
+state_counts <- data_raw |> 
+  group_by(STATEICP) |> 
+  summarize(total_count = n())
+
+state_adjusted <- state_counts |> 
+  mutate(estimated_value = total_count * proportion_116)
+```
+
+```{r}
+#| include: false
+# Calculate the number of observations for each STATEICP
+state_counts <- data_raw |> 
+  group_by(STATEICP) |> 
+  summarize(total_count = n())
+
+# Calculate the adjusted value by applying the proportion to each state's count
+state_adjusted <- state_counts |> 
+  mutate(estimated_value = total_count * proportion_116)
+
+# Calculate the actual number of observations for EDUCD == 116 in each STATEICP
+actual_counts <- data_raw |> 
+  filter(EDUCD == 116) |> 
+  group_by(STATEICP) |> 
+  summarize(actual_number = n(), .groups = 'drop')  # Use .groups = 'drop' to avoid grouping
+
+# Join the state_adjusted with actual_counts
+state_adjusted <- state_adjusted |> 
+  left_join(actual_counts, by = "STATEICP")
+```
+
+As shown in @tbl-table1, column estimated_value represents estimated number of doctoral respondents, column actual_number represents actual number of doctoral respondents.
+
+```{r}
+#| message: false
+#| echo: false
+#| warning: false
+#| label: tbl-table1
+#| tbl-cap: The Number of Actual and Estimated People in Each State with a Doctoral Degree
+library(knitr)
+kable(state_adjusted)
+```
+
+Ratio estimator approach is biased to the order O(1/n), but with hundreds of thousands of observations, it is not very biased but bias still exists. Also since we are using the ratio of doctoral degrees for only California, we are falsely assuming that the ratio is the same for all other states, and doctoral degrees have the same relationship with recipients in California as in other states. Also if doctoral degrees and recipients do not have a high correlation the estimates will be less accurate. Random chance will also create a difference between estimated vs real numbers.
+
+Citation 
+Steven Ruggles, Sarah Flood, Matthew Sobek, Daniel Backman, Annie Chen, Grace Cooper, Stephanie Richards, Renae Rodgers, and Megan Schouweiler. IPUMS USA: Version 15.0 2022 ACS. Minneapolis, MN: IPUMS, 2024. https://doi.org/10.18128/D010.V15.0
+ R Core Team (2021). R: A language and environment for statistical
+  computing. R Foundation for Statistical Computing, Vienna, Austria.
+ URL https://www.R-project.org/.
+
+
+01-usage.txt:
+https://drive.google.com/file/d/1LTEbl5D05fMIS-MeLb_oihlN16F-WL6t/view?usp=sharing
